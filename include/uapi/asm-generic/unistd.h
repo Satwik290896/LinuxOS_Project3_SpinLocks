@@ -860,8 +860,17 @@ __SYSCALL(__NR_faccessat2, sys_faccessat2)
 #define __NR_process_madvise 440
 __SYSCALL(__NR_process_madvise, sys_process_madvise)
 
+#define __NR_pstrace_enable 441
+__SYSCALL(__NR_pstrace_enable, sys_pstrace_enable)
+#define __NR_pstrace_disable 442
+__SYSCALL(__NR_pstrace_disable, sys_pstrace_disable)
+#define __NR_pstrace_get 443
+__SYSCALL(__NR_pstrace_get, sys_pstrace_get)
+#define __NR_pstrace_clear 444
+__SYSCALL(__NR_pstrace_clear, sys_pstrace_clear)
+
 #undef __NR_syscalls
-#define __NR_syscalls 441
+#define __NR_syscalls 445
 
 /*
  * 32 bit systems traditionally used different
