@@ -362,6 +362,10 @@
 438	common	pidfd_getfd		sys_pidfd_getfd
 439	common	faccessat2		sys_faccessat2
 440	common	process_madvise		sys_process_madvise
+441	64	pstrace_enable		sys_pstrace_enable
+442	64	pstrace_disable		sys_pstrace_disable
+443	64	pstrace_get		sys_pstrace_get
+444	64	pstrace_clear		sys_pstrace_clear
 
 #
 # Due to a historical design error, certain syscalls are numbered differently

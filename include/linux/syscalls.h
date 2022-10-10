@@ -82,6 +82,7 @@ struct open_how;
 #include <linux/key.h>
 #include <linux/personality.h>
 #include <trace/syscall.h>
+#include <linux/pstrace.h>
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
 /*
@@ -777,6 +778,12 @@ asmlinkage long sys_getgid(void);
 asmlinkage long sys_getegid(void);
 asmlinkage long sys_gettid(void);
 asmlinkage long sys_sysinfo(struct sysinfo __user *info);
+
+/* HW3 */
+asmlinkage long sys_pstrace_enable(pid_t pid);
+asmlinkage long sys_pstrace_disable();
+asmlinkage long sys_pstrace_get(struct pstrace __user *buf, long __user *counter);
+asmlinkage long sys_pstrace_clear();
 
 /* ipc/mqueue.c */
 asmlinkage long sys_mq_open(const char __user *name, int oflag, umode_t mode, struct mq_attr __user *attr);
