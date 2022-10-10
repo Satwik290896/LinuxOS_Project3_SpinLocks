@@ -8,13 +8,40 @@
 #include <linux/string.h>
 #include <linux/unistd.h>
 
+void insert_pstrace_entry(struct task_struct *p, long state)
+{
+	/* Add the ring buffer entry at index ring_buf_len.
+	 * Assumption: we have a lock on the ring buffer.
+	 */
+
+	strcpy(ring_buf[ring_buf_len].comm, p->comm);
+	ring_buf[ring_buf_len].state = state;
+	ring_buf[ring_buf_len].pid = p->tgid;
+	ring_buf[ring_buf_len].tid = p->pid;
+
+	ring_buf_len++;
+	if (ring_buf_len == PSTRACE_BUF_SIZE)
+		ring_buf_len = 0;
+}
 
 /* Add a record of the state change into the ring buffer. */
 void pstrace_add(struct task_struct *p, long state)
 {
 	/* Add to the ring buffer. We need to add the state updates of all those
-	 * traced processes
+	 * traced processes.
 	 */
+
+	/* is tracing enabled? */
+	if (traced_pid == -2)
+		return;
+
+	/* are we tracing this process? */
+	if ((traced_pid != -1) && (traced_pid != p->pid))
+		return;
+
+	/* TODO: lock the buffer */
+	insert_pstrace_entry(p, state);
+	/* TODO: unlock the buffer */
 }
 
 
@@ -24,6 +51,20 @@ void pstrace_add(struct task_struct *p, long state)
  */
 SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 {
+	struct task_struct *task = NULL;
+
+	/* validate that we are given a valid pid */
+	if (pid < -1)
+		return -ESRCH;
+	else if (pid == 0)
+		task = &init_task;
+	else
+		task = find_task_by_vpid(pid);
+
+	if (task == NULL)
+		return -ESRCH;
+
+	traced_pid = pid;
 	return 0;
 }
 
@@ -34,6 +75,7 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 */
 SYSCALL_DEFINE0(pstrace_disable)
 {
+	traced_pid = -2;
 	return 0;
 }
 
