@@ -36,7 +36,7 @@ void pstrace_add(struct task_struct *p, long state)
 		return;
 
 	/* are we tracing this process? */
-	if ((traced_pid != -1) && (traced_pid != p->pid))
+	if ((traced_pid != -1) && (traced_pid != p->tgid))
 		return;
 
 	/* TODO: lock the buffer */
