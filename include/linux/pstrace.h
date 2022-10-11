@@ -1,6 +1,7 @@
 #ifndef __PSTRACE_H
 #define __PSTRACE_H
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 
 #define PSTRACE_BUF_SIZE 500	/* The maximum size of the ring buffer */
 
@@ -15,7 +16,7 @@ struct pstrace {
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 
-/* TODO: create a lock for ring_buf and traced_pid */
+spinlock_t ring_buf_lock; /* used for locking the ring_buf, ring_buf_len, and traced_pid */
 int ring_buf_len = 0;  /* index of latest entry in the ring buffer */
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled

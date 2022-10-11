@@ -31,17 +31,22 @@ void pstrace_add(struct task_struct *p, long state)
 	 * traced processes.
 	 */
 
+	spin_lock(&ring_buf_lock);
+	
 	/* is tracing enabled? */
-	if (traced_pid == -2)
+	if (traced_pid == -2) {
+		spin_unlock(&ring_buf_lock);
 		return;
+	}
 
 	/* are we tracing this process? */
-	if ((traced_pid != -1) && (traced_pid != p->tgid))
+	if ((traced_pid != -1) && (traced_pid != p->tgid)) {
+		spin_unlock(&ring_buf_lock);
 		return;
+	}
 
-	/* TODO: lock the buffer */
 	insert_pstrace_entry(p, state);
-	/* TODO: unlock the buffer */
+	spin_unlock(&ring_buf_lock);
 }
 
 
@@ -64,7 +69,10 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 	if (task == NULL)
 		return -ESRCH;
 
+	spin_lock(&ring_buf_lock);
 	traced_pid = pid;
+	spin_unlock(&ring_buf_lock);
+
 	return 0;
 }
 
@@ -75,7 +83,10 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 */
 SYSCALL_DEFINE0(pstrace_disable)
 {
+	spin_lock(&ring_buf_lock);
 	traced_pid = -2;
+	spin_unlock(&ring_buf_lock);
+
 	return 0;
 }
 
