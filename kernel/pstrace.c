@@ -19,6 +19,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	ring_buf[ring_buf_len].pid = p->tgid;
 	ring_buf[ring_buf_len].tid = p->pid;
 
+	ring_buf_count++;
 	ring_buf_len++;
 	if (ring_buf_len == PSTRACE_BUF_SIZE)
 		ring_buf_len = 0;
