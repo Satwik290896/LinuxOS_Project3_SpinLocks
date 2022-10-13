@@ -3630,6 +3630,11 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	 * transition, resulting in a double drop.
 	 */
 	prev_state = prev->state;
+	//	printk(KERN_INFO "prev_state: %ld", prev_state);
+	if (prev_state == TASK_RUNNING)
+		pstrace_add(prev, TASK_RUNNABLE);
+	else
+		pstrace_add(prev, prev_state);
 	vtime_task_switch(prev);
 	perf_event_task_sched_in(prev, current);
 	finish_task(prev);
@@ -4539,6 +4544,8 @@ static void __sched notrace __schedule(bool preempt)
 		++*switch_count;
 
 		psi_sched_switch(prev, next, !task_on_rq_queued(prev));
+
+		pstrace_add(next, TASK_RUNNING);
 
 		trace_sched_switch(preempt, prev, next);
 
