@@ -40,6 +40,7 @@ void pstrace_add(struct task_struct *p, long state)
 	/* Add to the ring buffer. We need to add the state updates of all those
 	 * traced processes.
 	 */
+	unsigned long flags = 0;
 
 	/* only track states that we care about */
 	if (state != TASK_RUNNING &&
@@ -51,22 +52,22 @@ void pstrace_add(struct task_struct *p, long state)
 	    state != EXIT_DEAD)
 		return;
 
-	spin_lock(&ring_buf_lock);
+	spin_lock_irqsave(&ring_buf_lock, flags);
 	
 	/* is tracing enabled? */
 	if (traced_pid == -2) {
-		spin_unlock(&ring_buf_lock);
+		spin_unlock_irqrestore(&ring_buf_lock, flags);
 		return;
 	}
 
 	/* are we tracing this process? */
 	if ((traced_pid != -1) && (traced_pid != p->tgid)) {
-		spin_unlock(&ring_buf_lock);
+		spin_unlock_irqrestore(&ring_buf_lock, flags);
 		return;
 	}
 
 	insert_pstrace_entry(p, state);
-	spin_unlock(&ring_buf_lock);
+	spin_unlock_irqrestore(&ring_buf_lock, flags);
 }
 
 
@@ -77,6 +78,7 @@ void pstrace_add(struct task_struct *p, long state)
 SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 {
 	struct task_struct *task = NULL;
+	unsigned long flags = 0;
 
 	/* validate that we are given a valid pid */
 	if (pid < -1)
@@ -89,9 +91,9 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 	if (task == NULL)
 		return -ESRCH;
 
-	spin_lock(&ring_buf_lock);
+	spin_lock_irqsave(&ring_buf_lock, flags);
 	traced_pid = pid;
-	spin_unlock(&ring_buf_lock);
+	spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 	return 0;
 }
@@ -103,9 +105,11 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 */
 SYSCALL_DEFINE0(pstrace_disable)
 {
-	spin_lock(&ring_buf_lock);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&ring_buf_lock, flags);
 	traced_pid = -2;
-	spin_unlock(&ring_buf_lock);
+	spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 	return 0;
 }
