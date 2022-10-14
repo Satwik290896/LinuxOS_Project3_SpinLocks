@@ -2998,8 +2998,10 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 unlock:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 out:
-	if (success)
+	if (success) {
 		ttwu_stat(p, task_cpu(p), wake_flags);
+		pstrace_add(p, TASK_RUNNING);
+	}
 	preempt_enable();
 
 	return success;
