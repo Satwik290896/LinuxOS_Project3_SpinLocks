@@ -85,10 +85,11 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 		return -ESRCH;
 	else if (pid == 0)
 		task = &init_task;
-	else
+	else if (pid > 0) {
 		task = find_task_by_vpid(pid);
+	}
 
-	if (task == NULL)
+	if (pid != -1 && task == NULL)
 		return -ESRCH;
 
 	spin_lock_irqsave(&ring_buf_lock, flags);
