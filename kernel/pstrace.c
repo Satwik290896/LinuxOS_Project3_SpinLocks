@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/unistd.h>
+#include <linux/mutex.h>
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 
@@ -129,12 +130,16 @@ SYSCALL_DEFINE0(pstrace_disable)
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
 	int i;
-	for(i = 0; i < ring_buf_len; i++){
-		
-	}
-	spin_lock_irq(&ring_buf_lock);
+	unsigned long flags = 0;
 
-	spin_unlock_irq(&ring_buf_lock);
+	spin_lock_irqsave(&ring_buf_lock, flags);
+	for(i = 0; i < ring_buf_len; i++){
+		strcpy(buf[i].comm, ring_buf[i].comm);
+		buf[i].state = ring_buf[i].state;
+		buf[i].pid = ring_buf[i].pid;
+		buf[i].tid = ring_buf[i].tid;
+	}
+	spin_unlock_irqsave(&ring_buf_lock, flags);
 	return 0;
 }
 
