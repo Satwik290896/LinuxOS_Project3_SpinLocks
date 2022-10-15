@@ -17,6 +17,7 @@ int ring_buf_count = 0; /* number of records added since last clear */
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled
 			*/
+struct mutex mutex_lock; /* used for locking ring_buf and sleep */
 
 void insert_pstrace_entry(struct task_struct *p, long state)
 {
@@ -131,15 +132,18 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 {
 	int i;
 	unsigned long flags = 0;
-
-	spin_lock_irqsave(&ring_buf_lock, flags);
-	for(i = 0; i < ring_buf_len; i++){
-		strcpy(buf[i].comm, ring_buf[i].comm);
-		buf[i].state = ring_buf[i].state;
-		buf[i].pid = ring_buf[i].pid;
-		buf[i].tid = ring_buf[i].tid;
+	if(counter <= 0){
+		spin_lock_irqsave(&ring_buf_lock, flags);
+		for(i = 0; i < ring_buf_len; i++){
+			strcpy(buf[i].comm, ring_buf[i].comm);
+			buf[i].state = ring_buf[i].state;
+			buf[i].pid = ring_buf[i].pid;
+			buf[i].tid = ring_buf[i].tid;
+		}
+		spin_unlock_irqsave(&ring_buf_lock, flags);
+	}else{
+		
 	}
-	spin_unlock_irqsave(&ring_buf_lock, flags);
 	return 0;
 }
 
