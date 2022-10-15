@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/unistd.h>
-#include <linux/mutex.h>
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 
@@ -17,7 +16,7 @@ int ring_buf_count = 0; /* number of records added since last clear */
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled
 			*/
-struct mutex mutex_lock; /* used for locking ring_buf and sleep */
+struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
 
 void insert_pstrace_entry(struct task_struct *p, long state)
 {
@@ -70,6 +69,10 @@ void pstrace_add(struct task_struct *p, long state)
 
 	insert_pstrace_entry(p, state);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
+}
+
+void copy_buffer(){
+
 }
 
 
@@ -132,7 +135,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 {
 	int i;
 	unsigned long flags = 0;
+	if(!buf)
+		return -EINVAL;
+
 	if(counter <= 0){
+		if(sizeof(buf)/sizeof(buf[0]))
+
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		for(i = 0; i < ring_buf_len; i++){
 			strcpy(buf[i].comm, ring_buf[i].comm);
@@ -142,7 +150,14 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		}
 		spin_unlock_irqsave(&ring_buf_lock, flags);
 	}else{
-		
+		while(1){
+			while(ring_buf_len < *counter + PSTRACE_BUF_SIZE){
+				schedule();
+			}
+			spin_lock_irqsave(&ring_buf_lock, flags);
+			
+			spin_unlock_irqrestore(&ring_buf_lock, flags);
+		}
 	}
 	return 0;
 }
