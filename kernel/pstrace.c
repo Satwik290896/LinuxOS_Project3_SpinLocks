@@ -156,7 +156,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		if((sizeof(buf) / sizeof(buf[0])) < (*counter + PSTRACE_BUF_SIZE))
 			return -EINVAL;
 
-		while(ring_buf_len != PSTRACE_BUF_SIZE)
+		while(ring_buf_count != *counter + PSTRACE_BUF_SIZE)
 			schedule();
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		for(i = 0; i < PSTRACE_BUF_SIZE; i++){
