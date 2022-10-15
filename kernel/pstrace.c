@@ -71,8 +71,12 @@ void pstrace_add(struct task_struct *p, long state)
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
 }
 
-void copy_buffer(){
-
+/* copy the values in ring_buf[index] to buf[counter+index] */
+void copy_buffer(struct pstrace *buf, int counter,int index){
+	strcpy(buf[counter + index].comm, ring_buf[index].comm);
+	buf[counter + index].state = ring_buf[index].state;
+	buf[counter + index].pid = ring_buf[index].pid;
+	buf[counter + index].tid = ring_buf[index].tid;
 }
 
 
@@ -139,25 +143,22 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		return -EINVAL;
 
 	if(counter <= 0){
-		if(sizeof(buf)/sizeof(buf[0]))
-
+		if(sizeof(buf)/sizeof(buf[0]) < ring_buf_len)
+			return -EINVAL; 
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		for(i = 0; i < ring_buf_len; i++){
-			strcpy(buf[i].comm, ring_buf[i].comm);
-			buf[i].state = ring_buf[i].state;
-			buf[i].pid = ring_buf[i].pid;
-			buf[i].tid = ring_buf[i].tid;
-		}
+		for(i = 0; i < ring_buf_len; i++)
+			copy_buffer(buf, i);
 		spin_unlock_irqsave(&ring_buf_lock, flags);
 	}else{
-		while(1){
-			while(ring_buf_len < *counter + PSTRACE_BUF_SIZE){
+		do{
+			while(ring_buf_len < *counter + PSTRACE_BUF_SIZE)
 				schedule();
-			}
 			spin_lock_irqsave(&ring_buf_lock, flags);
-			
+			for(i = 0; i < PSTRACE_BUF_SIZE; i++){
+				copy_buffer(buf, (*counter) + 1, i);
+			}
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
-		}
+		}while(ring_buf_len < *counter + PSTRACE_BUF_SIZE);
 	}
 	return 0;
 }
