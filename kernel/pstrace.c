@@ -137,7 +137,7 @@ SYSCALL_DEFINE0(pstrace_disable)
  */
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
-	int i;
+	int i, records_copied = 0;
 	unsigned long flags = 0;
 	if(!buf)
 		return -EINVAL;
@@ -145,22 +145,28 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 	if(counter <= 0){
 		if(sizeof(buf)/sizeof(buf[0]) < ring_buf_len)
 			return -EINVAL; 
+
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		for(i = 0; i < ring_buf_len; i++)
-			copy_buffer(buf, i);
+			copy_buffer(buf, 0, i);
 		spin_unlock_irqsave(&ring_buf_lock, flags);
+
+		records_copied = ring_buf_len;
 	}else{
-		do{
-			while(ring_buf_len < *counter + PSTRACE_BUF_SIZE)
-				schedule();
-			spin_lock_irqsave(&ring_buf_lock, flags);
-			for(i = 0; i < PSTRACE_BUF_SIZE; i++){
-				copy_buffer(buf, (*counter) + 1, i);
-			}
-			spin_unlock_irqrestore(&ring_buf_lock, flags);
-		}while(ring_buf_len < *counter + PSTRACE_BUF_SIZE);
+		if((sizeof(buf) / sizeof(buf[0])) < (*counter + PSTRACE_BUF_SIZE))
+			return -EINVAL;
+
+		while(ring_buf_len != PSTRACE_BUF_SIZE)
+			schedule();
+		spin_lock_irqsave(&ring_buf_lock, flags);
+		for(i = 0; i < PSTRACE_BUF_SIZE; i++){
+			copy_buffer(buf, *counter + 1, i);
+		}
+		spin_unlock_irqrestore(&ring_buf_lock, flags);
+
+		records_copied = PSTRACE_BUF_SIZE;
 	}
-	return 0;
+	return records_copied;
 }
 
 
