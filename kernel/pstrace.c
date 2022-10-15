@@ -128,6 +128,13 @@ SYSCALL_DEFINE0(pstrace_disable)
  */
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
+	int i;
+	for(i = 0; i < ring_buf_len; i++){
+		
+	}
+	spin_lock_irq(&ring_buf_lock);
+
+	spin_unlock_irq(&ring_buf_lock);
 	return 0;
 }
 
