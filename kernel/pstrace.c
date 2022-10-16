@@ -12,7 +12,9 @@ struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 
 spinlock_t ring_buf_lock; /* used for locking the ring_buf, ring_buf_len, and traced_pid */
 int ring_buf_len = 0;  /* index of latest entry in the ring buffer */
-int ring_buf_count = 0; /* number of records added since last clear */
+int ring_buf_count = 0; /* number of records added ever */
+int ring_buf_valid_count = 0; /* number of records added since last clear */
+atomic_t clear_count; /* used for conditionally stopping waiting when we clear the buffer */
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled
 			*/
@@ -30,6 +32,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	ring_buf[ring_buf_len].tid = p->pid;
 
 	ring_buf_count++;
+	ring_buf_valid_count++;
 	ring_buf_len++;
 	if (ring_buf_len == PSTRACE_BUF_SIZE)
 		ring_buf_len = 0;
@@ -71,11 +74,11 @@ void pstrace_add(struct task_struct *p, long state)
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
 }
 
-int copy_ring_buf(struct pstrace *dst, int num_to_copy)
+int copy_ring_buf(struct pstrace *dst, int num_to_copy, int cleared)
 {
 	int i;
 
-	for (i = 0; i < num_to_copy; i++) {
+	for (i = 0; i < num_to_copy && (cleared == 0 || i < ring_buf_valid_count); i++) {
 		int index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
 		if (copy_to_user(&(dst[i].comm), ring_buf[index].comm, 16) ||
 		    put_user(ring_buf[index].state, &(dst[i].state)) ||
@@ -86,15 +89,6 @@ int copy_ring_buf(struct pstrace *dst, int num_to_copy)
 
 	return 0;
 }
-
-/* copy the values in ring_buf[index] to buf[counter+index] */
-void copy_buffer(struct pstrace *buf, int counter,int index){
-	strcpy(buf[counter + index].comm, ring_buf[index].comm);
-	buf[counter + index].state = ring_buf[index].state;
-	buf[counter + index].pid = ring_buf[index].pid;
-	buf[counter + index].tid = ring_buf[index].tid;
-}
-
 
 /*
  * Syscall No. 441
@@ -153,7 +147,10 @@ SYSCALL_DEFINE0(pstrace_disable)
  */
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
-	int ret, num_to_copy, records_copied = 0;
+	int ret;
+	int num_to_copy;
+	int records_copied = 0;
+	int cleared = 0;
 	unsigned long flags = 0;
 	if (!buf)
 		return -EINVAL;
@@ -168,7 +165,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		num_to_copy = (PSTRACE_BUF_SIZE > ring_buf_count ?
 				   PSTRACE_BUF_SIZE : ring_buf_count);
-		ret = copy_ring_buf(buf, num_to_copy);
+		ret = copy_ring_buf(buf, num_to_copy, cleared);
 		if (ret < 0) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return ret;
@@ -180,12 +177,18 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		/* if ((sizeof(buf) / sizeof(buf[0])) < (*counter + PSTRACE_BUF_SIZE)) */
 		/* 	return -EINVAL; */
 
-		while (ring_buf_count < *counter + PSTRACE_BUF_SIZE)
+		int orig_clear_count = clear_count.counter;
+		while (ring_buf_count < *counter + PSTRACE_BUF_SIZE) {
+			if (orig_clear_count != clear_count.counter) {
+				cleared = 1;
+				break;
+			}
 			schedule();
+		}
 
 		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE);
+		ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE, cleared);
 		if (ret < 0) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return ret;
@@ -207,7 +210,14 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
  */
 SYSCALL_DEFINE0(pstrace_clear)
 {
-	/* TODO: wipe all records */
+	unsigned long flags = 0;
+
+	atomic_inc(&clear_count);
+
+	spin_lock_irqsave(&ring_buf_lock, flags);
+	ring_buf_valid_count = 0;
+	spin_unlock_irqrestore(&ring_buf_lock, flags);
+
 	return 0;
 }
 
