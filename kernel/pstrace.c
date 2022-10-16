@@ -71,6 +71,22 @@ void pstrace_add(struct task_struct *p, long state)
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
 }
 
+int copy_ring_buf(struct pstrace *dst, int num_to_copy)
+{
+	int i;
+
+	for (i = 0; i < num_to_copy; i++) {
+		int index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+		if (copy_to_user(&(dst[i].comm), ring_buf[index].comm, 16) ||
+		    put_user(ring_buf[index].state, &(dst[i].state)) ||
+		    put_user(ring_buf[index].pid, &(dst[i].pid)) ||
+		    put_user(ring_buf[index].tid, &(dst[i].tid)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
 /* copy the values in ring_buf[index] to buf[counter+index] */
 void copy_buffer(struct pstrace *buf, int counter,int index){
 	strcpy(buf[counter + index].comm, ring_buf[index].comm);
@@ -137,30 +153,42 @@ SYSCALL_DEFINE0(pstrace_disable)
  */
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
-	int i, records_copied = 0;
+	int ret, num_to_copy, records_copied = 0;
 	unsigned long flags = 0;
-	if(!buf)
+	if (!buf)
 		return -EINVAL;
 
-	if(counter <= 0){
-		if(sizeof(buf)/sizeof(buf[0]) < ring_buf_len)
-			return -EINVAL; 
+	if (counter < 0)
+		return -EINVAL;
+	else if (counter == 0) {
+		/* nonblocking call */
+	        /* if (sizeof(buf) / sizeof(buf[0]) < ring_buf_len) */
+		/* 	return -EINVAL; */
 
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		for(i = 0; i < ring_buf_len; i++)
-			copy_buffer(buf, 0, i);
-		spin_unlock_irqsave(&ring_buf_lock, flags);
+		num_to_copy = (PSTRACE_BUF_SIZE > ring_buf_count ?
+				   PSTRACE_BUF_SIZE : ring_buf_count);
+		ret = copy_ring_buf(buf, num_to_copy);
+		if (ret < 0) {
+			spin_unlock_irqrestore(&ring_buf_lock, flags);
+			return ret;
+		}
+		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 		records_copied = ring_buf_len;
-	}else{
-		if((sizeof(buf) / sizeof(buf[0])) < (*counter + PSTRACE_BUF_SIZE))
-			return -EINVAL;
+	} else {
+		/* if ((sizeof(buf) / sizeof(buf[0])) < (*counter + PSTRACE_BUF_SIZE)) */
+		/* 	return -EINVAL; */
 
-		while(ring_buf_count != *counter + PSTRACE_BUF_SIZE)
+		while (ring_buf_count < *counter + PSTRACE_BUF_SIZE)
 			schedule();
+
+		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		for(i = 0; i < PSTRACE_BUF_SIZE; i++){
-			copy_buffer(buf, *counter + 1, i);
+		ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE);
+		if (ret < 0) {
+			spin_unlock_irqrestore(&ring_buf_lock, flags);
+			return ret;
 		}
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
@@ -179,6 +207,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
  */
 SYSCALL_DEFINE0(pstrace_clear)
 {
+	/* TODO: wipe all records */
 	return 0;
 }
 
