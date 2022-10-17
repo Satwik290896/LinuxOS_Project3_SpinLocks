@@ -170,8 +170,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 
 	/* copy *nr from user space into max_entries */
 	if (copy_from_user(&linux_counter, counter, sizeof(long)))
-		return -EPERM;
-		
+		return -EFAULT;
+
 	if (linux_counter < 0)
 		return -EINVAL;
 		
