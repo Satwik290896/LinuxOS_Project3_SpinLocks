@@ -34,6 +34,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	ring_buf[ring_buf_len].tid = p->pid;
 
 	ring_buf_count++;
+	// wake_up?
 	ring_buf_valid_count++;
 	ring_buf_len++;
 	if (ring_buf_len == PSTRACE_BUF_SIZE)
@@ -194,10 +195,15 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 			}
 			schedule();
 		}*/
-		
+
 		if (ring_buf_count < linux_counter + PSTRACE_BUF_SIZE) {
 			wq_head.lock = wait_queue;
-			wait_event(wq_head, ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE);
+			wait_event(wq_head,
+				   (ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE) ||
+				   (orig_clear_count != clear_count.counter));
+
+			if (orig_clear_count != clear_count.counter)
+				cleared = 1;
 		}
 
 		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
@@ -227,6 +233,7 @@ SYSCALL_DEFINE0(pstrace_clear)
 	unsigned long flags = 0;
 
 	atomic_inc(&clear_count);
+	// wake_up?
 
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	ring_buf_valid_count = 0;
