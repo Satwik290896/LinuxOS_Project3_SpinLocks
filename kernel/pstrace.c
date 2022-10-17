@@ -7,10 +7,12 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/unistd.h>
+#include <linux/wait.h>
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 
 spinlock_t ring_buf_lock; /* used for locking the ring_buf, ring_buf_len, and traced_pid */
+spinlock_t wait_queue;
 int ring_buf_len = 0;  /* index of latest entry in the ring buffer */
 int ring_buf_count = 0; /* number of records added ever */
 int ring_buf_valid_count = 0; /* number of records added since last clear */
@@ -149,15 +151,22 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 {
 	int ret;
 	int num_to_copy;
+	int linux_counter;
 	int records_copied = 0;
 	int cleared = 0;
 	unsigned long flags = 0;
-	if (!buf)
+	struct wait_queue_head wq_head;
+	
+	if (!buf || !counter)
 		return -EINVAL;
 
-	if (counter < 0)
+	/* copy *nr from user space into max_entries */
+	if (copy_from_user(&linux_counter, counter, sizeof(int)))
+		return -EFAULT;
+		
+	if (linux_counter < 0)
 		return -EINVAL;
-	else if (counter == 0) {
+	else if (linux_counter == 0) {
 		/* nonblocking call */
 	        /* if (sizeof(buf) / sizeof(buf[0]) < ring_buf_len) */
 		/* 	return -EINVAL; */
@@ -178,12 +187,17 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		/* 	return -EINVAL; */
 
 		int orig_clear_count = clear_count.counter;
-		while (ring_buf_count < *counter + PSTRACE_BUF_SIZE) {
+		/*while (ring_buf_count < *counter + PSTRACE_BUF_SIZE) {
 			if (orig_clear_count != clear_count.counter) {
 				cleared = 1;
 				break;
 			}
 			schedule();
+		}*/
+		
+		if (ring_buf_count < linux_counter + PSTRACE_BUF_SIZE) {
+			wq_head.lock = wait_queue;
+			wait_event(wq_head, ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE);
 		}
 
 		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
