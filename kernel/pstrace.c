@@ -152,7 +152,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 {
 	int ret;
 	int num_to_copy;
-	int linux_counter;
+	long linux_counter;
 	int records_copied = 0;
 	int cleared = 0;
 	unsigned long flags = 0;
@@ -162,7 +162,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		return -EINVAL;
 
 	/* copy *nr from user space into max_entries */
-	if (copy_from_user(&linux_counter, counter, sizeof(int)))
+	if (copy_from_user(&linux_counter, counter, sizeof(long)))
 		return -EFAULT;
 		
 	if (linux_counter < 0)
