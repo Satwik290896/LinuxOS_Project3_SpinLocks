@@ -83,8 +83,8 @@ void pstrace_add(struct task_struct *p, long state)
 
 	insert_pstrace_entry(p, state);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
-	if (is_wakeup_required)
-		wake_up_interruptible(&wq_head);
+	//	if (is_wakeup_required)
+	//		wake_up_interruptible(&wq_head);
 }
 
 /*int copy_ring_buf(struct pstrace __user *dst, int num_to_copy, int cleared)
@@ -191,7 +191,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				   PSTRACE_BUF_SIZE : ring_buf_count);
 		/*ret = copy_ring_buf(buf, num_to_copy, cleared);*/
 		
-		for (i = 0; i < num_to_copy && (cleared == 0 || i < ring_buf_valid_count); i++) 
+		for (i = 0; i < num_to_copy; i++)// && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
 			if (copy_to_user(&(buf[i].comm), ring_buf[index].comm, 16*sizeof(char)) ||
@@ -199,6 +199,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		    		put_user(ring_buf[index].pid, &(buf[i].pid)) ||
 		    		put_user(ring_buf[index].tid, &(buf[i].tid)))
 		    	{
+				spin_unlock_irqrestore(&ring_buf_lock, flags);
 				return -ENOTBLK;  /*Actually EFAULT*/
 			}
 		}
@@ -211,6 +212,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 		records_copied = ring_buf_len;
+		return records_copied;
 	} else {
 
 		int orig_clear_count = clear_count.counter;
