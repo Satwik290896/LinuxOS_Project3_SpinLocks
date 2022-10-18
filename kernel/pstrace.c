@@ -38,8 +38,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	ring_buf[ring_buf_len].tid = p->pid;
 
 	ring_buf_count++;
-	if (is_wakeup_required)
-		wake_up_interruptible(&wq_head);
+
 	// wake_up?
 	ring_buf_valid_count++;
 	ring_buf_len++;
@@ -81,6 +80,8 @@ void pstrace_add(struct task_struct *p, long state)
 
 	insert_pstrace_entry(p, state);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
+	if (is_wakeup_required)
+		wake_up_interruptible(&wq_head);
 }
 
 /*int copy_ring_buf(struct pstrace __user *dst, int num_to_copy, int cleared)
