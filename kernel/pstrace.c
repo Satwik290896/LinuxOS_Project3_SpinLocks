@@ -20,7 +20,8 @@ atomic_t clear_count; /* used for conditionally stopping waiting when we clear t
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled
 			*/
-struct wait_queue_head wq_head;
+DECLARE_WAIT_QUEUE_HEAD(wq_head);
+//struct wait_queue_head wq_head;
 bool is_wakeup_required = false;
 //wq_head.lock = wait_queue;
 struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
@@ -38,7 +39,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 
 	ring_buf_count++;
 	if (is_wakeup_required)
-		wake_up(&wq_head);
+		wake_up_interruptible(&wq_head);
 	// wake_up?
 	ring_buf_valid_count++;
 	ring_buf_len++;
@@ -107,6 +108,7 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 	struct task_struct *task = NULL;
 	unsigned long flags = 0;
 
+
 	/* validate that we are given a valid pid */
 	if (pid < -1)
 		return -ESRCH;
@@ -119,6 +121,8 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 	if (pid != -1 && task == NULL)
 		return -ESRCH;
 
+	printk(KERN_WARNING "wait_status: [pstrace.c] Enable: %d\n", pid);
+	
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	traced_pid = pid;
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
@@ -163,6 +167,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 	unsigned long flags = 0;
 	int index;
 	int i;
+	int wait_status = -ERESTARTSYS;
 	
 	
 	if (!buf || !counter)
@@ -206,14 +211,21 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 
 		int orig_clear_count = clear_count.counter;
 		
+		printk(KERN_WARNING "wait_status: [pstrace.c] Entering here: %d\n", wait_status);
 
 		if (ring_buf_count < linux_counter + PSTRACE_BUF_SIZE) {
+			printk(KERN_WARNING "wait_status: [pstrace.c] Condition not satisfied %d\n", wait_status);
 			wq_head.lock = wait_queue;	
 			is_wakeup_required = true;
-			wait_event(wq_head,
+			//while (wait_status < 0) {
+			wait_status = wait_event_interruptible(wq_head,
 				   (ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE) ||
 				   (orig_clear_count != clear_count.counter));
-
+				   printk(KERN_WARNING "wait_status: [pstrace.c] Interrupted? Or not?: %d\n", wait_status);
+			//}
+			
+			if (wait_status !=  0)
+				return wait_status;
 			if (orig_clear_count != clear_count.counter)
 				cleared = 1;
 		}
@@ -261,7 +273,7 @@ SYSCALL_DEFINE0(pstrace_clear)
 	atomic_inc(&clear_count);
 	// wake_up?
 	if (is_wakeup_required)
-		wake_up(&wq_head);
+		wake_up_interruptible(&wq_head);
 
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	ring_buf_valid_count = 0;
