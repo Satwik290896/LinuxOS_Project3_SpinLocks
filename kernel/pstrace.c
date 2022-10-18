@@ -194,13 +194,13 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		for (i = 0; i < num_to_copy; i++)// && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
-			if (copy_to_user(&(buf[i].comm), ring_buf[index].comm, 16*sizeof(char)) ||
-		    		put_user(ring_buf[index].state, &(buf[i].state)) ||
-		    		put_user(ring_buf[index].pid, &(buf[i].pid)) ||
-		    		put_user(ring_buf[index].tid, &(buf[i].tid)))
-		    	{
+
+			if (copy_to_user(&(buf[i].comm), &(ring_buf[index].comm), 16*sizeof(char)) ||
+			    copy_to_user(&(buf[i].state), &(ring_buf[index].state), sizeof(long)) ||
+			    copy_to_user(&(buf[i].pid), &(ring_buf[index].pid), sizeof(pid_t)) ||
+			    copy_to_user(&(buf[i].tid), &(ring_buf[index].tid), sizeof(pid_t))) {
 				spin_unlock_irqrestore(&ring_buf_lock, flags);
-				return -ENOTBLK;  /*Actually EFAULT*/
+				return -EFAULT;
 			}
 		}
 		
@@ -243,12 +243,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
-			if (copy_to_user(&(buf[i].comm), ring_buf[index].comm, 16*sizeof(char)) ||
-		    		put_user(ring_buf[index].state, &(buf[i].state)) ||
-		    		put_user(ring_buf[index].pid, &(buf[i].pid)) ||
-		    		put_user(ring_buf[index].tid, &(buf[i].tid)))
-		    	{
-				return -ENOTBLK;  /*Actually EFAULT*/
+			if (copy_to_user(&(buf[i].comm), &(ring_buf[index].comm), 16*sizeof(char)) ||
+			    copy_to_user(&(buf[i].state), &(ring_buf[index].state), sizeof(long)) ||
+			    copy_to_user(&(buf[i].pid), &(ring_buf[index].pid), sizeof(pid_t)) ||
+			    copy_to_user(&(buf[i].tid), &(ring_buf[index].tid), sizeof(pid_t))) {
+				spin_unlock_irqrestore(&ring_buf_lock, flags);
+				return -EFAULT;
 			}
 		}
 		
