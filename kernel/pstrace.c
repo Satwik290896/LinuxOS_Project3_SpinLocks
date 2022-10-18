@@ -54,6 +54,9 @@ void pstrace_add(struct task_struct *p, long state)
 	 */
 	unsigned long flags = 0;
 
+	if (state == TASK_STOPPED)
+		state = __TASK_STOPPED;
+
 	/* only track states that we care about */
 	if (state != TASK_RUNNING &&
 	    state != TASK_RUNNABLE &&
@@ -222,7 +225,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 			wait_status = wait_event_interruptible(wq_head,
 				   (ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE) ||
 				   (orig_clear_count != clear_count.counter));
-				   printk(KERN_WARNING "wait_status: [pstrace.c] Interrupted? Or not?: %d\n", wait_status);
+			printk(KERN_WARNING "wait_status: [pstrace.c] Interrupted? Or not?: %d\n", wait_status);
 			//}
 			
 			if (wait_status !=  0)
