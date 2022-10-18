@@ -187,10 +187,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 	else if (linux_counter == 0) {
 
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		num_to_copy = (PSTRACE_BUF_SIZE > ring_buf_count ?
-				   PSTRACE_BUF_SIZE : ring_buf_count);
+		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
+			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
+		/* num_to_copy = (PSTRACE_BUF_SIZE > ring_buf_count ? */
+		/* 		   PSTRACE_BUF_SIZE : ring_buf_count); */
 		/*ret = copy_ring_buf(buf, num_to_copy, cleared);*/
-		
+
 		for (i = 0; i < num_to_copy; i++)// && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
