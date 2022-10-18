@@ -193,9 +193,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		/* 		   PSTRACE_BUF_SIZE : ring_buf_count); */
 		/*ret = copy_ring_buf(buf, num_to_copy, cleared);*/
 
+		printk(KERN_WARNING "num_to_copy: %d\nring_buf_len: %d\n", num_to_copy, ring_buf_len);
+
 		for (i = 0; i < num_to_copy; i++)// && (cleared == 0 || i < ring_buf_valid_count); i++) 
-		{
+		{			
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+			printk(KERN_WARNING "index: %d\n", index);
 
 			if (copy_to_user(buf[i].comm, ring_buf[index].comm, 16*sizeof(char)) ||
 			    copy_to_user(&(buf[i].state), &(ring_buf[index].state), sizeof(long)) ||
