@@ -203,11 +203,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				spin_unlock_irqrestore(&ring_buf_lock, flags);
 				return -EFAULT;
 			}
+			records_copied++;
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
-		records_copied = ring_buf_len;
 		return records_copied;
 	} else {
 
@@ -245,11 +245,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				spin_unlock_irqrestore(&ring_buf_lock, flags);
 				return -EFAULT;
 			}
+			records_copied++;
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
-		records_copied = PSTRACE_BUF_SIZE;
 		return records_copied;
 	}
 	return records_copied;
