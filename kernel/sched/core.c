@@ -4548,7 +4548,7 @@ static void __sched notrace __schedule(bool preempt)
 
 		psi_sched_switch(prev, next, !task_on_rq_queued(prev));
 
-		pstrace_add(next, TASK_RUNNING);
+		//pstrace_add(next, TASK_RUNNING);
 
 		trace_sched_switch(preempt, prev, next);
 
