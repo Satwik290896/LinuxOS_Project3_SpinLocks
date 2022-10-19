@@ -163,7 +163,6 @@ SYSCALL_DEFINE0(pstrace_disable)
  */
 SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counter)
 {
-	long ret;
 	int num_to_copy;
 	long linux_counter;
 	long records_copied = 0;
@@ -189,14 +188,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
 			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
-		/* num_to_copy = (PSTRACE_BUF_SIZE > ring_buf_count ? */
-		/* 		   PSTRACE_BUF_SIZE : ring_buf_count); */
-		/*ret = copy_ring_buf(buf, num_to_copy, cleared);*/
 
 		printk(KERN_WARNING "num_to_copy: %d\nring_buf_len: %d\n", num_to_copy, ring_buf_len);
 
-		for (i = 0; i < num_to_copy; i++)// && (cleared == 0 || i < ring_buf_valid_count); i++) 
-		{			
+		for (i = 0; i < num_to_copy && i < ring_buf_valid_count; i++)
+		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
 			printk(KERN_WARNING "index: %d\n", index);
 
@@ -208,12 +204,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				return -EFAULT;
 			}
 		}
-		
-		ret = 0;
-		if (ret < 0) {
-			spin_unlock_irqrestore(&ring_buf_lock, flags);
-			return ret;
-		}
+
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 		records_copied = ring_buf_len;
@@ -244,7 +235,6 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 
 		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
 		spin_lock_irqsave(&ring_buf_lock, flags);
-		//ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE, cleared);
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
@@ -256,15 +246,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				return -EFAULT;
 			}
 		}
-		
-		ret = 0;
-		if (ret < 0) {
-			spin_unlock_irqrestore(&ring_buf_lock, flags);
-			return ret;
-		}
+
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 		records_copied = PSTRACE_BUF_SIZE;
+		return records_copied;
 	}
 	return records_copied;
 }
