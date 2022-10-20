@@ -31,12 +31,11 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	/* Add the ring buffer entry at index ring_buf_len.
 	 * Assumption: we have a lock on the ring buffer.
 	 */
-
 	strcpy(ring_buf[ring_buf_len].comm, p->comm);
 	ring_buf[ring_buf_len].state = state;
 	ring_buf[ring_buf_len].pid = p->tgid;
 	ring_buf[ring_buf_len].tid = p->pid;
-
+	printk("Insert Ring_buff[%d] info:\ncomm: %s\nstate: %ld\n", ring_buf_len, ring_buf[ring_buf_len].comm, ring_buf[ring_buf_len].state);
 	ring_buf_count++;
 
 	// wake_up?
@@ -194,8 +193,13 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 
 		for (i = 0; i < num_to_copy && i < ring_buf_valid_count; i++)
 		{
-			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+			// index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+			if(ring_buf_valid_count > 500)
+				index = (ring_buf_valid_count + i) % PSTRACE_BUF_SIZE;
+			else
+				index = i;
 			printk(KERN_WARNING "index: %d\n", index);
+			printk("Copy Ring_buff[%d] info:\ncomm: %s\nstate: %ld\n", index, ring_buf[index].comm, ring_buf[index].state);
 
 			if (copy_to_user(buf[i].comm, ring_buf[index].comm, 16*sizeof(char)) ||
 			    copy_to_user(&(buf[i].state), &(ring_buf[index].state), sizeof(long)) ||
@@ -275,6 +279,8 @@ SYSCALL_DEFINE0(pstrace_clear)
 
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	ring_buf_valid_count = 0;
+
+	ring_buf_len = 0;
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
 
 	return 0;
