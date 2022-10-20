@@ -80,7 +80,7 @@ void pstrace_add(struct task_struct *p, long state)
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
 		return;
 	}
-
+	printk("Process to be traced: tgid=%d\n", p->tgid);
 	insert_pstrace_entry(p, state);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
 	//	if (is_wakeup_required)
@@ -124,7 +124,8 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 
 	if (pid != -1 && task == NULL)
 		return -ESRCH;
-
+	if(pid != -1)
+		printk("traced task tid: %d\n", (int)task->tgid);
 	printk(KERN_WARNING "wait_status: [pstrace.c] Enable: %d\n", pid);
 	
 	spin_lock_irqsave(&ring_buf_lock, flags);
