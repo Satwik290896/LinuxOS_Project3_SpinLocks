@@ -26,10 +26,6 @@ long linux_counter = 0;
 int orig_clear_count = 0;
 struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
 
-bool is_adding_complete = true;
-bool is_syscall443_copying = false;
-
-
 
 void insert_pstrace_entry(struct task_struct *p, long state)
 {
@@ -295,16 +291,16 @@ SYSCALL_DEFINE0(pstrace_clear)
 
 	atomic_inc(&clear_count);
 	// wake_up?
-	if (is_wakeup_required && ((ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE) ||
-				   (orig_clear_count != clear_count.counter)))
-	{
-		wake_up_interruptible(&wq_head);
-	}
 	
 	//flags = 0;
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	ring_buf_valid_count = 0;
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
+	
+	if (is_wakeup_required && (orig_clear_count != clear_count.counter))
+	{
+		wake_up_interruptible(&wq_head);
+	}
 
 	return 0;
 }
