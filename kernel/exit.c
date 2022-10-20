@@ -199,7 +199,7 @@ repeat:
 	thread_pid = get_pid(p->thread_pid);
 	__exit_signal(p);
 
-	pstrace_add(p, EXIT_DEAD);
+	//pstrace_add(p, EXIT_DEAD);
 
 	/*
 	 * If we are the last non-leader member of the thread
@@ -218,7 +218,7 @@ repeat:
 		zap_leader = do_notify_parent(leader, leader->exit_signal);
 		if (zap_leader) {
 			leader->exit_state = EXIT_DEAD;
-			pstrace_add(leader, EXIT_DEAD);
+			//pstrace_add(leader, EXIT_DEAD);
 		}
 	}
 
@@ -595,7 +595,7 @@ static void reparent_leader(struct task_struct *father, struct task_struct *p,
 	    p->exit_state == EXIT_ZOMBIE && thread_group_empty(p)) {
 		if (do_notify_parent(p, p->exit_signal)) {
 			p->exit_state = EXIT_DEAD;
-			pstrace_add(p, EXIT_DEAD);
+			//pstrace_add(p, EXIT_DEAD);
 			list_add(&p->ptrace_entry, dead);
 		}
 	}
@@ -663,7 +663,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
 	tsk->exit_state = EXIT_ZOMBIE;
-	pstrace_add(tsk, EXIT_ZOMBIE);
+	//pstrace_add(tsk, EXIT_ZOMBIE);
 	if (unlikely(tsk->ptrace)) {
 		int sig = thread_group_leader(tsk) &&
 				thread_group_empty(tsk) &&
@@ -679,7 +679,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 
 	if (autoreap) {
 		tsk->exit_state = EXIT_DEAD;
-		pstrace_add(tsk, EXIT_DEAD);
+		//pstrace_add(tsk, EXIT_DEAD);
 		list_add(&tsk->ptrace_entry, &dead);
 	}
 
@@ -1100,7 +1100,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	if (state == EXIT_DEAD)
 		release_task(p);
 	else
-		pstrace_add(p, state);
+		//pstrace_add(p, state);
 
 out_info:
 	infop = wo->wo_info;

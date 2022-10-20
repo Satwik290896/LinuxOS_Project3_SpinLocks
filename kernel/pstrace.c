@@ -10,21 +10,25 @@
 #include <linux/wait.h>
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
-
+unsigned long flags = 0;
 spinlock_t ring_buf_lock; /* used for locking the ring_buf, ring_buf_len, and traced_pid */
 spinlock_t wait_queue;
 int ring_buf_len = 0;  /* index of latest entry in the ring buffer */
-int ring_buf_count = 0; /* number of records added ever */
+long ring_buf_count = 0; /* number of records added ever */
 int ring_buf_valid_count = 0; /* number of records added since last clear */
 atomic_t clear_count; /* used for conditionally stopping waiting when we clear the buffer */
 pid_t traced_pid = -2; /* the pid we are tracing, or -1 for all processes,
 			* or -2 for tracing disabled
 			*/
 DECLARE_WAIT_QUEUE_HEAD(wq_head);
-//struct wait_queue_head wq_head;
 bool is_wakeup_required = false;
-//wq_head.lock = wait_queue;
+long linux_counter = 0;
+int orig_clear_count = 0;
 struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
+
+
+
+
 
 void insert_pstrace_entry(struct task_struct *p, long state)
 {
@@ -52,7 +56,13 @@ void pstrace_add(struct task_struct *p, long state)
 	/* Add to the ring buffer. We need to add the state updates of all those
 	 * traced processes.
 	 */
-	unsigned long flags = 0;
+	 
+	if (traced_pid == -2)
+		return;
+	 
+	if ((traced_pid != -1) && (traced_pid != p->tgid))
+		return;
+
 
 	if (state == TASK_STOPPED)
 		state = __TASK_STOPPED;
@@ -82,9 +92,12 @@ void pstrace_add(struct task_struct *p, long state)
 	}
 
 	insert_pstrace_entry(p, state);
+	printk(KERN_WARNING "wait_status: [pstrace.c] ring_buf_count: %ld\n", ring_buf_count);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
-	//	if (is_wakeup_required)
-	//		wake_up_interruptible(&wq_head);
+	if (is_wakeup_required && ((ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE)))
+	{
+		wake_up_interruptible(&wq_head);
+	}
 }
 
 /*int copy_ring_buf(struct pstrace __user *dst, int num_to_copy, int cleared)
@@ -110,8 +123,8 @@ void pstrace_add(struct task_struct *p, long state)
 SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 {
 	struct task_struct *task = NULL;
-	unsigned long flags = 0;
-
+	//unsigned long flags = 0;
+	//flags = 0;
 
 	/* validate that we are given a valid pid */
 	if (pid < -1)
@@ -141,7 +154,7 @@ SYSCALL_DEFINE1(pstrace_enable, pid_t, pid)
 */
 SYSCALL_DEFINE0(pstrace_disable)
 {
-	unsigned long flags = 0;
+	//flags = 0;
 
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	traced_pid = -2;
@@ -165,10 +178,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 {
 	long ret;
 	int num_to_copy;
-	long linux_counter;
 	long records_copied = 0;
 	int cleared = 0;
-	unsigned long flags = 0;
 	int index;
 	int i;
 	int wait_status = -ERESTARTSYS;
@@ -185,7 +196,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		return -EINVAL;
 		
 	else if (linux_counter == 0) {
-
+		//flags = 0;
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
 			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
@@ -220,7 +231,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		return records_copied;
 	} else {
 
-		int orig_clear_count = clear_count.counter;
+		orig_clear_count = clear_count.counter;
 		
 		printk(KERN_WARNING "wait_status: [pstrace.c] Entering here: %d\n", wait_status);
 
@@ -241,7 +252,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				cleared = 1;
 		}
 		is_wakeup_required = false;
-
+		
+		//flags = 0;
 		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		//ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE, cleared);
@@ -279,13 +291,16 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
  */
 SYSCALL_DEFINE0(pstrace_clear)
 {
-	unsigned long flags = 0;
 
 	atomic_inc(&clear_count);
 	// wake_up?
-	if (is_wakeup_required)
+	if (is_wakeup_required && ((ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE) ||
+				   (orig_clear_count != clear_count.counter)))
+	{
 		wake_up_interruptible(&wq_head);
-
+	}
+	
+	//flags = 0;
 	spin_lock_irqsave(&ring_buf_lock, flags);
 	ring_buf_valid_count = 0;
 	spin_unlock_irqrestore(&ring_buf_lock, flags);

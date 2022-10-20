@@ -2866,6 +2866,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 		trace_sched_waking(p);
 		p->state = TASK_RUNNING;
 		trace_sched_wakeup(p);
+		pstrace_add(p, TASK_RUNNING);
 		goto out;
 	}
 
@@ -2996,12 +2997,14 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 	ttwu_queue(p, cpu, wake_flags);
 unlock:
+	if (success)
+		pstrace_add(p, TASK_RUNNING);
+	
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 out:
-	if (success) {
+	if (success)
 		ttwu_stat(p, task_cpu(p), wake_flags);
-		pstrace_add(p, TASK_RUNNING);
-	}
+
 	preempt_enable();
 
 	return success;
@@ -3638,6 +3641,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		pstrace_add(prev, TASK_RUNNABLE);
 	else
 		pstrace_add(prev, prev_state);
+	
 	vtime_task_switch(prev);
 	perf_event_task_sched_in(prev, current);
 	finish_task(prev);
