@@ -2998,10 +2998,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 unlock:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 out:
-	if (success) {
+	if (success)
 		ttwu_stat(p, task_cpu(p), wake_flags);
-		pstrace_add(p, TASK_RUNNING);
-	}
+
 	preempt_enable();
 
 	return success;
@@ -3358,7 +3357,7 @@ void wake_up_new_task(struct task_struct *p)
 
 	raw_spin_lock_irqsave(&p->pi_lock, rf.flags);
 	p->state = TASK_RUNNING;
-	pstrace_add(p, TASK_RUNNING);
+
 #ifdef CONFIG_SMP
 	/*
 	 * Fork balancing, do it here and not earlier because:
@@ -3634,10 +3633,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	 */
 	prev_state = prev->state;
 	//	printk(KERN_INFO "prev_state: %ld", prev_state);
-	if (prev_state == TASK_RUNNING)
-		pstrace_add(prev, TASK_RUNNABLE);
-	else
-		pstrace_add(prev, prev_state);
+	
 	vtime_task_switch(prev);
 	perf_event_task_sched_in(prev, current);
 	finish_task(prev);
@@ -3679,6 +3675,12 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	}
 
 	tick_nohz_task_switch();
+	
+	if (prev_state == TASK_RUNNING)
+		pstrace_add(prev, TASK_RUNNABLE);
+	else
+		pstrace_add(prev, prev_state);
+
 	return rq;
 }
 
@@ -4548,12 +4550,11 @@ static void __sched notrace __schedule(bool preempt)
 
 		psi_sched_switch(prev, next, !task_on_rq_queued(prev));
 
-		pstrace_add(next, TASK_RUNNING);
-
 		trace_sched_switch(preempt, prev, next);
 
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);
+		pstrace_add(next, TASK_RUNNING);
 	} else {
 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 		rq_unlock_irq(rq, &rf);
