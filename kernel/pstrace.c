@@ -242,7 +242,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
-			index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+			// index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
+			if(ring_buf_valid_count > 500)
+				index = (ring_buf_valid_count + i) % PSTRACE_BUF_SIZE;
+			else
+				index = i;
 			if (copy_to_user(buf[i].comm, ring_buf[index].comm, 16*sizeof(char)) ||
 			    copy_to_user(&(buf[i].state), &(ring_buf[index].state), sizeof(long)) ||
 			    copy_to_user(&(buf[i].pid), &(ring_buf[index].pid), sizeof(pid_t)) ||
