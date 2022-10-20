@@ -3002,8 +3002,7 @@ out:
 		ttwu_stat(p, task_cpu(p), wake_flags);
 
 	preempt_enable();
-	if (success)
-		pstrace_add(p, TASK_RUNNING);
+
 	return success;
 }
 
@@ -3358,7 +3357,7 @@ void wake_up_new_task(struct task_struct *p)
 
 	raw_spin_lock_irqsave(&p->pi_lock, rf.flags);
 	p->state = TASK_RUNNING;
-	//pstrace_add(p, TASK_RUNNING);
+
 #ifdef CONFIG_SMP
 	/*
 	 * Fork balancing, do it here and not earlier because:

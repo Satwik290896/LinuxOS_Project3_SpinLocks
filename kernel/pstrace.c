@@ -26,7 +26,8 @@ long linux_counter = 0;
 int orig_clear_count = 0;
 struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
 
-
+bool is_adding_complete = true;
+bool is_syscall443_copying = false;
 
 
 
@@ -35,7 +36,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	/* Add the ring buffer entry at index ring_buf_len.
 	 * Assumption: we have a lock on the ring buffer.
 	 */
-
+	
 	strcpy(ring_buf[ring_buf_len].comm, p->comm);
 	ring_buf[ring_buf_len].state = state;
 	ring_buf[ring_buf_len].pid = p->tgid;
@@ -48,6 +49,7 @@ void insert_pstrace_entry(struct task_struct *p, long state)
 	ring_buf_len++;
 	if (ring_buf_len == PSTRACE_BUF_SIZE)
 		ring_buf_len = 0;
+	
 }
 
 /* Add a record of the state change into the ring buffer. */
@@ -252,9 +254,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 				cleared = 1;
 		}
 		is_wakeup_required = false;
+		records_copied = 0;
 		
-		//flags = 0;
-		/* now, return valid entries between *counter and *counter+PSTRACE_BUF_SIZE */
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		//ret = copy_ring_buf(buf, PSTRACE_BUF_SIZE, cleared);
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
