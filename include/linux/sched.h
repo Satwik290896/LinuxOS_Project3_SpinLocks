@@ -148,7 +148,6 @@ struct io_uring_task;
 		raw_spin_lock_irqsave(&current->pi_lock, flags);	\
 		current->task_state_change = _THIS_IP_;			\
 		current->state = (state_value);				\
-		pstrace_add(current, state_value);			\
 		raw_spin_unlock_irqrestore(&current->pi_lock, flags);	\
 	} while (0)
 #else
@@ -206,7 +205,6 @@ struct io_uring_task;
 		unsigned long flags; /* may shadow */			\
 		raw_spin_lock_irqsave(&current->pi_lock, flags);	\
 		current->state = (state_value);				\
-		pstrace_add(current, state_value);			\
 		raw_spin_unlock_irqrestore(&current->pi_lock, flags);	\
 	} while (0)
 
