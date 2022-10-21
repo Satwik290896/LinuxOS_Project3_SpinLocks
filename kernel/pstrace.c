@@ -208,37 +208,21 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 			return 0;
 		}
 
-		/*Valid values - these will only increase. there is no "%" */	
+		/*Valid values - these will only increase. there is no "%"
+		 * Not using it anywhere in counter = 0*/	
 		start_index_counter = (local_counter-num_to_copy);
 		end_index_counter = (local_counter - 1);
 
-		if ((start_index_counter > linux_counter + PSTRACE_BUF_SIZE) ||
-			(end_index_counter <= linux_counter)) {
-			spin_unlock_irqrestore(&ring_buf_lock, flags);
-			return 0;
-		}
 		/*Need % as these are valid indices stored*/
-		end_valid_index = (ring_buf_len - 1) % PSTRACE_BUF_SIZE;
-		start_valid_index = (ring_buf_len - num_to_copy) % PSTRACE_BUF_SIZE;
+		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) % PSTRACE_BUF_SIZE;
+		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - num_to_copy) % PSTRACE_BUF_SIZE;
 		
 		for (i = 0; i < num_to_copy && i < ring_buf_valid_count; i++) {
 		
-			if (i == 0) {
+			if (i == 0)
 				index = start_valid_index;
-				/*counter values of this index*/
-				temp_index_counter = start_index_counter;
-			}
-			else {
+			else
 				index = (index + 1) % PSTRACE_BUF_SIZE;
-				/*counter values of this index*/
-				temp_index_counter++;
-			}
-			
-			if (temp_index_counter <= linux_counter)
-				continue;
-				
-			if (temp_index_counter > linux_counter + PSTRACE_BUF_SIZE)
-				break;
 				
 			if (copy_to_user(buf[i].comm,
 					 ring_buf[index].comm,
@@ -299,18 +283,20 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return 0;
 		}
-		/*Valid values */	
+		
+		/*Valid values - these will only increase. there is no "%" */	
 		start_index_counter = (local_counter-num_to_copy);
 		end_index_counter = (local_counter - 1);
+		
 		if ((start_index_counter > linux_counter + PSTRACE_BUF_SIZE) ||
 			(end_index_counter <= linux_counter)) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return 0;
 		}
 
-		
-		end_valid_index = (ring_buf_len - 1) % PSTRACE_BUF_SIZE;
-		start_valid_index = (ring_buf_len - num_to_copy) % PSTRACE_BUF_SIZE;
+		/*Need % as these are valid indices stored*/
+		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) % PSTRACE_BUF_SIZE;
+		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - num_to_copy) % PSTRACE_BUF_SIZE;
 		
 		for (i = 0; i < PSTRACE_BUF_SIZE &&
 			     (cleared == 0 || i < ring_buf_valid_count); i++) {
