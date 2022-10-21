@@ -2845,6 +2845,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 {
 	unsigned long flags;
 	int cpu, success = 0;
+	
 
 	preempt_disable();
 	if (p == current) {
@@ -2885,7 +2886,6 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 	/* We're going to change ->state: */
 	success = 1;
-
 	/*
 	 * Ensure we load p->on_rq _after_ p->state, otherwise it would
 	 * be possible to, falsely, observe p->on_rq == 0 and get stuck
@@ -2999,8 +2999,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 unlock:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 out:
-	if (success)
+	if (success) {
 		ttwu_stat(p, task_cpu(p), wake_flags);
+	}
 
 	preempt_enable();
 	if (success)
@@ -3678,10 +3679,10 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 
 	tick_nohz_task_switch();
 	
-	/*if (prev_state == TASK_RUNNING)
+	if (prev_state == TASK_RUNNING)
 		pstrace_add(prev, TASK_RUNNABLE);
 	else
-		pstrace_add(prev, prev_state);*/
+		pstrace_add(prev, prev_state);
 
 	return rq;
 }
@@ -4556,7 +4557,7 @@ static void __sched notrace __schedule(bool preempt)
 
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);
-		//pstrace_add(next, TASK_RUNNING);
+		pstrace_add(next, TASK_RUNNING);
 	} else {
 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 		rq_unlock_irq(rq, &rf);
@@ -4569,7 +4570,7 @@ void __noreturn do_task_dead(void)
 {
 	/* Causes final put_task_struct in finish_task_switch(): */
 	set_special_state(TASK_DEAD);
-	//pstrace_add(current, TASK_DEAD);
+	pstrace_add(current, TASK_DEAD);
 
 	/* Tell freezer to ignore us: */
 	current->flags |= PF_NOFREEZE;

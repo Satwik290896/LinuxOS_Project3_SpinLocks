@@ -107,10 +107,20 @@ void pstrace_add_wakeup(struct task_struct *p, long state)
 	/* Add to the ring buffer. We need to add the state updates of all those
 	 * traced processes.
 	 */
-	if (syscall443_pid != p->pid)
-		return pstrace_add(p, state);
-	else
+	if (traced_pid == -2)
 		return;
+	 
+	if ((traced_pid != -1) && (traced_pid != p->tgid))
+		return;
+
+
+	
+	if (syscall443_pid == p->pid)
+		return;
+	else if (traced_pid == -1)
+		return;
+	else
+		return pstrace_add(p, state);
 }
 
 /*int copy_ring_buf(struct pstrace __user *dst, int num_to_copy, int cleared)
@@ -262,15 +272,18 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 			printk(KERN_WARNING "wait_status: [pstrace.c] Interrupted? Or not?: %d\n", wait_status);
 			//}
 			
-			if (wait_status !=  0)
+			if (wait_status !=  0) {
+				syscall443_pid = -10;
 				return wait_status;
+			}
 			if (orig_clear_count != clear_count.counter)
 				cleared = 1;
 		}
 		is_wakeup_required = false;
 		records_copied = 0;
+		syscall443_pid = -10;
 		
-		/*spin_lock_irqsave(&ring_buf_lock, flags);
+		spin_lock_irqsave(&ring_buf_lock, flags);
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			// index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
@@ -289,7 +302,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
-		*/
+
 		return records_copied;
 	}
 	return records_copied;
