@@ -94,6 +94,7 @@ void pstrace_add(struct task_struct *p, long state)
 	}
 	insert_pstrace_entry(p, state);
 	spin_unlock_irqrestore(&ring_buf_lock, flags);
+
 	if (is_wakeup_required &&
 	    ((ring_buf_count >= linux_counter + PSTRACE_BUF_SIZE))) {
 		wake_up_interruptible(&wq_head);
