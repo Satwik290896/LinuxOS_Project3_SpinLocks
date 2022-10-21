@@ -17,5 +17,6 @@ struct pstrace {
 
 /* Add a record of the state change into the ring buffer. */
 void pstrace_add(struct task_struct *p, long state);
+void pstrace_add_wakeup(struct task_struct *p, long state);
 
 #endif

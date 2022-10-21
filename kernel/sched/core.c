@@ -2876,6 +2876,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	 * in set_current_state() that the waiting thread does.
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+
 	smp_mb__after_spinlock();
 	if (!(p->state & state))
 		goto unlock;
@@ -3002,7 +3003,8 @@ out:
 		ttwu_stat(p, task_cpu(p), wake_flags);
 
 	preempt_enable();
-
+	if (success)
+		pstrace_add_wakeup(p, TASK_RUNNABLE);
 	return success;
 }
 
@@ -3676,10 +3678,10 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 
 	tick_nohz_task_switch();
 	
-	if (prev_state == TASK_RUNNING)
+	/*if (prev_state == TASK_RUNNING)
 		pstrace_add(prev, TASK_RUNNABLE);
 	else
-		pstrace_add(prev, prev_state);
+		pstrace_add(prev, prev_state);*/
 
 	return rq;
 }
@@ -4554,7 +4556,7 @@ static void __sched notrace __schedule(bool preempt)
 
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);
-		pstrace_add(next, TASK_RUNNING);
+		//pstrace_add(next, TASK_RUNNING);
 	} else {
 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 		rq_unlock_irq(rq, &rf);
@@ -4567,7 +4569,7 @@ void __noreturn do_task_dead(void)
 {
 	/* Causes final put_task_struct in finish_task_switch(): */
 	set_special_state(TASK_DEAD);
-	pstrace_add(current, TASK_DEAD);
+	//pstrace_add(current, TASK_DEAD);
 
 	/* Tell freezer to ignore us: */
 	current->flags |= PF_NOFREEZE;

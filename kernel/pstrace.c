@@ -11,8 +11,8 @@
 
 struct pstrace ring_buf[PSTRACE_BUF_SIZE];
 unsigned long flags = 0;
-spinlock_t ring_buf_lock; /* used for locking the ring_buf, ring_buf_len, and traced_pid */
-spinlock_t wait_queue;
+DEFINE_SPINLOCK(ring_buf_lock); /* used for locking the ring_buf, ring_buf_len, and traced_pid */
+//spinlock_t ring_buf_lock; 
 int ring_buf_len = 0;  /* index of latest entry in the ring buffer */
 long ring_buf_count = 0; /* number of records added ever */
 int ring_buf_valid_count = 0; /* number of records added since last clear */
@@ -25,6 +25,7 @@ bool is_wakeup_required = false;
 long linux_counter = 0;
 int orig_clear_count = 0;
 struct mutex pstrace_mutex; /* used for locking ring_buf and sleep */
+pid_t syscall443_pid = -10;
 
 
 void insert_pstrace_entry(struct task_struct *p, long state)
@@ -54,14 +55,16 @@ void pstrace_add(struct task_struct *p, long state)
 	/* Add to the ring buffer. We need to add the state updates of all those
 	 * traced processes.
 	 */
-	 
+	
 	if (traced_pid == -2)
 		return;
 	 
 	if ((traced_pid != -1) && (traced_pid != p->tgid))
 		return;
 
-
+	if (p->pid < 0)
+		return;
+		
 	if (state == TASK_STOPPED)
 		state = __TASK_STOPPED;
 
@@ -96,6 +99,18 @@ void pstrace_add(struct task_struct *p, long state)
 	{
 		wake_up_interruptible(&wq_head);
 	}
+}
+
+
+void pstrace_add_wakeup(struct task_struct *p, long state)
+{
+	/* Add to the ring buffer. We need to add the state updates of all those
+	 * traced processes.
+	 */
+	if (syscall443_pid != p->pid)
+		return pstrace_add(p, state);
+	else
+		return;
 }
 
 /*int copy_ring_buf(struct pstrace __user *dst, int num_to_copy, int cleared)
@@ -231,8 +246,14 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		printk(KERN_WARNING "wait_status: [pstrace.c] Entering here: %d\n", wait_status);
 
 		if (ring_buf_count < linux_counter + PSTRACE_BUF_SIZE) {
+			syscall443_pid = task_pid_nr(current);
+			
+			if (syscall443_pid < 0) {
+				return -EFAULT;
+			}
+			
 			printk(KERN_WARNING "wait_status: [pstrace.c] Condition not satisfied %d\n", wait_status);
-			wq_head.lock = wait_queue;	
+			//wq_head.lock = wait_queue;	
 			is_wakeup_required = true;
 			//while (wait_status < 0) {
 			wait_status = wait_event_interruptible(wq_head,
@@ -249,7 +270,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		is_wakeup_required = false;
 		records_copied = 0;
 		
-		spin_lock_irqsave(&ring_buf_lock, flags);
+		/*spin_lock_irqsave(&ring_buf_lock, flags);
 		for (i = 0; i < PSTRACE_BUF_SIZE && (cleared == 0 || i < ring_buf_valid_count); i++) 
 		{
 			// index = (ring_buf_len + i) % PSTRACE_BUF_SIZE;
@@ -268,7 +289,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf, long __user *, counte
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
-
+		*/
 		return records_copied;
 	}
 	return records_copied;
