@@ -204,28 +204,30 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
 			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
-		
+
 		if (num_to_copy == 0) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return 0;
 		}
 
 		/*Valid values - these will only increase. there is no "%"
-		 * Not using it anywhere in counter = 0*/	
+		 * Not using it anywhere in counter = 0
+		 */
 		start_index_counter = (local_counter-num_to_copy + 1);
 		end_index_counter = (local_counter);
 
 		/*Need % as these are valid indices stored*/
-		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) % PSTRACE_BUF_SIZE;
-		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - num_to_copy) % PSTRACE_BUF_SIZE;
-		
+		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) %
+		  PSTRACE_BUF_SIZE;
+		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE -
+				     num_to_copy) % PSTRACE_BUF_SIZE;
+
 		for (i = 0; i < num_to_copy && i < ring_buf_valid_count; i++) {
-		
 			if (i == 0)
 				index = start_valid_index;
 			else
 				index = (index + 1) % PSTRACE_BUF_SIZE;
-				
+
 			if (copy_to_user(buf[i].comm,
 					 ring_buf[index].comm,
 					 16*sizeof(char)) ||
@@ -242,11 +244,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 				return -EFAULT;
 			}
 			records_copied++;
-			
+
 			if (index == end_valid_index)
 				break;
 		}
-		
+
 		copy_counter = local_counter;
 		if (copy_to_user(counter, &copy_counter, sizeof(long))) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
@@ -288,16 +290,16 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 		spin_lock_irqsave(&ring_buf_lock, flags);
 		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
 			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
-		
+
 		if (num_to_copy == 0) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
 			return 0;
 		}
-		
-		/*Valid values - these will only increase. there is no "%" */	
+
+		/*Valid values - these will only increase. there is no "%" */
 		start_index_counter = (local_counter-num_to_copy + 1);
 		end_index_counter = (local_counter);
-		
+
 		if ((start_index_counter > linux_counter + PSTRACE_BUF_SIZE) ||
 			(end_index_counter <= linux_counter)) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
@@ -305,27 +307,29 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 		}
 
 		/*Need % as these are valid indices stored*/
-		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) % PSTRACE_BUF_SIZE;
-		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - num_to_copy) % PSTRACE_BUF_SIZE;
-		
+		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) %
+		  PSTRACE_BUF_SIZE;
+		start_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE -
+				     num_to_copy) % PSTRACE_BUF_SIZE;
+
 		for (i = 0; i < PSTRACE_BUF_SIZE &&
 			     (cleared == 0 || i < ring_buf_valid_count); i++) {
 
 			if (i == 0) {
 				index = start_valid_index;
 				temp_index_counter = start_index_counter;
-			}
-			else {
+			} else {
 				index = (index + 1) % PSTRACE_BUF_SIZE;
 				temp_index_counter++;
 			}
-			
+
 			if (temp_index_counter <= linux_counter)
 				continue;
-				
-			if (temp_index_counter > linux_counter + PSTRACE_BUF_SIZE)
+
+			if (temp_index_counter > linux_counter +
+			    PSTRACE_BUF_SIZE)
 				break;
-				
+
 			if (copy_to_user(buf[i].comm,
 					 ring_buf[index].comm,
 					 16*sizeof(char)) ||
@@ -342,11 +346,11 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 				return -EFAULT;
 			}
 			records_copied++;
-			
+
 			if (index == end_valid_index)
 				break;
 		}
-		
+
 		copy_counter = linux_counter + records_copied;
 		if (copy_to_user(counter, &copy_counter, sizeof(long))) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
