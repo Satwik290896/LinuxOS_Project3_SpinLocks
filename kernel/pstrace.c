@@ -187,6 +187,7 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 	int start_valid_index = 0;
 	/*To store the end (valid values) index in ringbuf*/
 	int end_valid_index = 0;
+	long copy_counter = 0;
 
 	if (!buf || !counter)
 		return -EINVAL;
@@ -243,6 +244,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 			
 			if (index == end_valid_index)
 				break;
+		}
+		
+		copy_counter = local_counter;
+		if (copy_to_user(counter, &copy_counter, sizeof(long))) {
+			spin_unlock_irqrestore(&ring_buf_lock, flags);
+			return -EFAULT;
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
@@ -337,6 +344,12 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 			
 			if (index == end_valid_index)
 				break;
+		}
+		
+		copy_counter = linux_counter + records_copied;
+		if (copy_to_user(counter, &copy_counter, sizeof(long))) {
+			spin_unlock_irqrestore(&ring_buf_lock, flags);
+			return -EFAULT;
 		}
 
 		spin_unlock_irqrestore(&ring_buf_lock, flags);
