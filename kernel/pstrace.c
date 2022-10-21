@@ -63,6 +63,9 @@ void pstrace_add(struct task_struct *p, long state)
 	if ((traced_pid != -1) && (traced_pid != p->tgid))
 		return;
 
+	if (!p)
+		return;
+
 	if ((p->pid < 0) || (p->tgid < 0))
 		return;
 
@@ -110,6 +113,8 @@ void pstrace_add_wakeup(struct task_struct *p, long state)
 	if (traced_pid == -2)
 		return;
 	if ((traced_pid != -1) && (traced_pid != p->tgid))
+		return;
+	if (!p)
 		return;
 	if (syscall443_pid == p->pid)
 		return;
