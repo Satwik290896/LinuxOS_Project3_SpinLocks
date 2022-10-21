@@ -278,6 +278,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 
 
 		spin_lock_irqsave(&ring_buf_lock, flags);
+		num_to_copy = (ring_buf_valid_count < PSTRACE_BUF_SIZE ?
+			       ring_buf_valid_count : PSTRACE_BUF_SIZE);
 		
 		if (num_to_copy == 0) {
 			spin_unlock_irqrestore(&ring_buf_lock, flags);
