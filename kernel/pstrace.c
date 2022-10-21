@@ -210,8 +210,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 
 		/*Valid values - these will only increase. there is no "%"
 		 * Not using it anywhere in counter = 0*/	
-		start_index_counter = (local_counter-num_to_copy);
-		end_index_counter = (local_counter - 1);
+		start_index_counter = (local_counter-num_to_copy + 1);
+		end_index_counter = (local_counter);
 
 		/*Need % as these are valid indices stored*/
 		end_valid_index = (ring_buf_len + PSTRACE_BUF_SIZE - 1) % PSTRACE_BUF_SIZE;
@@ -287,8 +287,8 @@ SYSCALL_DEFINE2(pstrace_get, struct pstrace __user *, buf,
 		}
 		
 		/*Valid values - these will only increase. there is no "%" */	
-		start_index_counter = (local_counter-num_to_copy);
-		end_index_counter = (local_counter - 1);
+		start_index_counter = (local_counter-num_to_copy + 1);
+		end_index_counter = (local_counter);
 		
 		if ((start_index_counter > linux_counter + PSTRACE_BUF_SIZE) ||
 			(end_index_counter <= linux_counter)) {
